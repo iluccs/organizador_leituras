@@ -2,6 +2,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'models/livro.dart';
+import 'pages/cadastro_page.dart';
 
 // Substitua pelo mesmo nome completo do comentário acima.
 const integrantes = 'Lucas Viana dos Santos e Mariana Alves Carvalho Vieira';
@@ -32,6 +33,25 @@ class LivrosPage extends StatefulWidget {
 class _LivrosPageState extends State<LivrosPage> {
   final List<Livro> _livros = [];
 
+  Future<void> _cadastrar() async {
+    final livro = await Navigator.push<Livro>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CadastroPage(integrantes: integrantes),
+      ),
+    );
+    if (!mounted || livro == null) return;
+    setState(() => _livros.add(livro));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Livro adicionado!')));
+  }
+
+  Future<void> _remover(int indice) async {
+    setState(() => _livros.removeAt(indice));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Livro removido!')));
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -56,9 +76,19 @@ class _LivrosPageState extends State<LivrosPage> {
                   leading: const Icon(Icons.menu_book),
                   title: Text(livro.titulo),
                   subtitle: Text('${livro.autor} • ${livro.status}'),
+                  trailing: IconButton(
+                    tooltip: 'Remover livro',
+                    onPressed: () => _remover(index),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
                 ),
               );
             },
           ),
+    floatingActionButton: FloatingActionButton(
+      onPressed: _cadastrar,
+      tooltip: 'Adicionar livro',
+      child: const Icon(Icons.add),
+    ),
   );
 }

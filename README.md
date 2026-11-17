@@ -1,4 +1,4 @@
-# TP7 — Organização de Leituras — parte 1
+# TP7 — Organização de Leituras — parte 2
 
 Integrantes: Lucas Viana dos Santos e Mariana Alves Carvalho Vieira.
 
