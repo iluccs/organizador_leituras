@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'models/livro.dart';
 import 'pages/cadastro_page.dart';
+import 'data/livro_repository.dart';
 
 // Substitua pelo mesmo nome completo do comentário acima.
 const integrantes = 'Lucas Viana dos Santos e Mariana Alves Carvalho Vieira';
@@ -31,7 +32,52 @@ class LivrosPage extends StatefulWidget {
 }
 
 class _LivrosPageState extends State<LivrosPage> {
-  final List<Livro> _livros = [];
+  List<Livro> _livros = [];
+  final _repository = LivroRepository();
+  bool _ocupado = true;
+  bool _erroCarga = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregar();
+  }
+
+  void _mensagem(String texto) =>
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(texto)));
+
+  Future<void> _carregar() async {
+    setState(() {
+      _ocupado = true;
+      _erroCarga = false;
+    });
+    try {
+      final livros = await _repository.carregar();
+      if (!mounted) return;
+      setState(() => _livros = livros);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _erroCarga = true);
+      _mensagem('Não foi possível carregar os livros. Tente novamente.');
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  Future<void> _atualizar(List<Livro> livros, String mensagem) async {
+    setState(() => _ocupado = true);
+    try {
+      await _repository.salvar(livros);
+      if (!mounted) return;
+      setState(() => _livros = livros);
+      _mensagem(mensagem);
+    } catch (_) {
+      if (mounted) _mensagem('Falha ao salvar. Tente novamente.');
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
 
   Future<void> _cadastrar() async {
     final livro = await Navigator.push<Livro>(
@@ -41,15 +87,12 @@ class _LivrosPageState extends State<LivrosPage> {
       ),
     );
     if (!mounted || livro == null) return;
-    setState(() => _livros.add(livro));
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Livro adicionado!')));
+    await _atualizar([..._livros, livro], 'Livro adicionado!');
   }
 
   Future<void> _remover(int indice) async {
-    setState(() => _livros.removeAt(indice));
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Livro removido!')));
+    final livros = [..._livros]..removeAt(indice);
+    await _atualizar(livros, 'Livro removido!');
   }
 
   @override
@@ -64,7 +107,16 @@ class _LivrosPageState extends State<LivrosPage> {
         ],
       ),
     ),
-    body: _livros.isEmpty
+    body: _ocupado
+        ? const Center(child: CircularProgressIndicator())
+        : _erroCarga
+        ? Center(
+            child: FilledButton(
+              onPressed: _carregar,
+              child: const Text('Tentar carregar novamente'),
+            ),
+          )
+        : _livros.isEmpty
         ? const Center(child: Text('Sua estante está vazia.'))
         : ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -78,7 +130,7 @@ class _LivrosPageState extends State<LivrosPage> {
                   subtitle: Text('${livro.autor} • ${livro.status}'),
                   trailing: IconButton(
                     tooltip: 'Remover livro',
-                    onPressed: () => _remover(index),
+                    onPressed: _ocupado ? null : () => _remover(index),
                     icon: const Icon(Icons.delete_outline),
                   ),
                 ),
@@ -86,7 +138,7 @@ class _LivrosPageState extends State<LivrosPage> {
             },
           ),
     floatingActionButton: FloatingActionButton(
-      onPressed: _cadastrar,
+      onPressed: _ocupado || _erroCarga ? null : _cadastrar,
       tooltip: 'Adicionar livro',
       child: const Icon(Icons.add),
     ),
